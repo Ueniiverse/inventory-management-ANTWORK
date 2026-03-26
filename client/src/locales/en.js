@@ -8,7 +8,8 @@ export default {
     demandForecast: 'Demand Forecast',
     companyName: 'Catalyst Components',
     subtitle: 'Inventory Management System',
-    restocking: 'Restocking'
+    restocking: 'Restocking',
+    reports: 'Reports'
   },
 
   // Dashboard
@@ -212,6 +213,37 @@ export default {
       leadTime: 'Est. Delivery'
     },
     days: '{days} days'
+  },
+
+  // Reports
+  reports: {
+    title: 'Performance Reports',
+    description: 'View quarterly performance metrics and monthly trends',
+    quarterly: {
+      title: 'Quarterly Performance',
+      quarter: 'Quarter',
+      totalOrders: 'Total Orders',
+      totalRevenue: 'Total Revenue',
+      avgOrderValue: 'Avg Order Value',
+      fulfillmentRate: 'Fulfillment Rate'
+    },
+    monthlyRevenue: {
+      title: 'Monthly Revenue Trend'
+    },
+    monthlyAnalysis: {
+      title: 'Month-over-Month Analysis',
+      month: 'Month',
+      orders: 'Orders',
+      revenue: 'Revenue',
+      change: 'Change',
+      growthRate: 'Growth Rate'
+    },
+    summary: {
+      totalRevenueYTD: 'Total Revenue (YTD)',
+      avgMonthlyRevenue: 'Avg Monthly Revenue',
+      totalOrdersYTD: 'Total Orders (YTD)',
+      bestQuarter: 'Best Performing Quarter'
+    }
   },
 
   // Filters

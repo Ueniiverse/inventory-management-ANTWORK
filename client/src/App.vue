@@ -36,9 +36,9 @@
           <svg class="link-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 3v4h-4"/><path d="M4 17v-4h4"/><path d="M16 7a7 7 0 01-1 9.5M4 13a7 7 0 011-9.5"/></svg>
           <span class="link-label">{{ t('nav.restocking') }}</span>
         </router-link>
-        <router-link to="/reports" class="sidebar-link" :class="{ active: $route.path === '/reports' }" :title="sidebarCollapsed ? 'Reports' : undefined">
+        <router-link to="/reports" class="sidebar-link" :class="{ active: $route.path === '/reports' }" :title="sidebarCollapsed ? t('nav.reports') : undefined">
           <svg class="link-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="10" width="3" height="8" rx="0.5"/><rect x="7" y="6" width="3" height="12" rx="0.5"/><rect x="12" y="2" width="3" height="16" rx="0.5"/></svg>
-          <span class="link-label">Reports</span>
+          <span class="link-label">{{ t('nav.reports') }}</span>
         </router-link>
       </nav>
     </aside>
