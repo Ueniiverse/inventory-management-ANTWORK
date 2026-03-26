@@ -297,7 +297,7 @@
 </template>
 
 <script>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { api } from '../api'
 import { useFilters } from '../composables/useFilters'
 import { useI18n } from '../composables/useI18n'
@@ -558,15 +558,22 @@ export default {
       return allBacklogItems.value.filter(b => validSkus.has(b.item_sku))
     })
 
+    let abortController = null
+
     const loadData = async () => {
+      // Cancel any in-flight request to prevent stale data from overwriting newer results
+      if (abortController) abortController.abort()
+      abortController = new AbortController()
+      const signal = abortController.signal
+
       try {
         loading.value = true
         const filters = getCurrentFilters()
 
         const [summaryData, ordersData, inventoryData, backlogData] = await Promise.all([
-          api.getDashboardSummary(filters),
-          api.getOrders(filters),
-          api.getInventory(filters),
+          api.getDashboardSummary(filters, signal),
+          api.getOrders(filters, signal),
+          api.getInventory(filters, signal),
           api.getBacklog()
         ])
 
@@ -575,6 +582,7 @@ export default {
         inventoryItems.value = inventoryData
         allBacklogItems.value = backlogData
       } catch (err) {
+        if (err.name === 'CanceledError' || err.name === 'AbortError') return
         error.value = 'Failed to load dashboard data: ' + err.message
       } finally {
         loading.value = false
@@ -675,6 +683,10 @@ export default {
     // Watch for filter changes and reload data
     watch([selectedPeriod, selectedLocation, selectedCategory, selectedStatus], () => {
       loadData()
+    })
+
+    onBeforeUnmount(() => {
+      if (abortController) abortController.abort()
     })
 
     onMounted(loadData)

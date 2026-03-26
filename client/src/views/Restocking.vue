@@ -98,7 +98,7 @@
 </template>
 
 <script>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { api } from '../api'
 import { useI18n } from '../composables/useI18n'
 
@@ -141,6 +141,11 @@ export default {
         orderPlaced.value = false
         loadRecommendations()
       }, 300)
+    })
+
+    // Clean up debounce timer on component unmount to prevent memory leaks
+    onBeforeUnmount(() => {
+      if (debounceTimer) clearTimeout(debounceTimer)
     })
 
     const getLeadTimeDays = (quantity) => {

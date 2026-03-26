@@ -84,7 +84,7 @@
 </template>
 
 <script>
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch, computed } from 'vue'
 import { api } from '../api'
 import { useFilters } from '../composables/useFilters'
 import { useI18n } from '../composables/useI18n'
@@ -149,7 +149,13 @@ export default {
       })
     })
 
+    let abortController = null
+
     const loadInventory = async () => {
+      // Cancel any in-flight request to prevent stale data from overwriting newer results
+      if (abortController) abortController.abort()
+      abortController = new AbortController()
+
       try {
         loading.value = true
         const filters = getCurrentFilters()
@@ -157,8 +163,9 @@ export default {
         items.value = await api.getInventory({
           warehouse: filters.warehouse,
           category: filters.category
-        })
+        }, abortController.signal)
       } catch (err) {
+        if (err.name === 'CanceledError' || err.name === 'AbortError') return
         error.value = 'Failed to load inventory: ' + err.message
       } finally {
         loading.value = false
@@ -168,6 +175,10 @@ export default {
     // Watch for filter changes and reload data
     watch([selectedLocation, selectedCategory], () => {
       loadInventory()
+    })
+
+    onBeforeUnmount(() => {
+      if (abortController) abortController.abort()
     })
 
     const getStockStatus = (item) => {

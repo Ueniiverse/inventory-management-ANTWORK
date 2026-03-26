@@ -86,9 +86,10 @@ const createCurrentUser = () => {
   })
 }
 
-const currentUser = createCurrentUser()
-
 export function useAuth() {
+  // Create currentUser inside the composable to avoid reactivity loss from
+  // module-level computed values that can produce stale closures across components
+  const currentUser = createCurrentUser()
   const isAuthenticated = ref(true)
 
   const logout = () => {

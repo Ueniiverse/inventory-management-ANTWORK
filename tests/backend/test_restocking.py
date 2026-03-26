@@ -55,12 +55,9 @@ def test_get_recommendations_budget_constraint(client):
 
 
 def test_get_recommendations_zero_budget(client):
-    """Zero budget should return no items."""
+    """Zero budget should be rejected by validation (must be > 0)."""
     response = client.get("/api/restocking/recommend?budget=0")
-    data = response.json()
-    assert len(data["items"]) == 0
-    assert data["total_cost"] == 0
-    assert data["remaining_budget"] == 0
+    assert response.status_code == 422
 
 
 def test_get_recommendations_large_budget(client):
