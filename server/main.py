@@ -2,6 +2,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
 from pydantic import BaseModel
+from datetime import datetime, timedelta
+import math
 from mock_data import inventory_items, orders, demand_forecasts, backlog_items, spending_summary, monthly_spending, category_spending, recent_transactions, purchase_orders
 
 app = FastAPI(title="Factory Inventory Management System")
@@ -89,6 +91,7 @@ class DemandForecast(BaseModel):
     forecasted_demand: int
     trend: str
     period: str
+    unit_cost: float
 
 class BacklogItem(BaseModel):
     id: str
@@ -119,6 +122,30 @@ class CreatePurchaseOrderRequest(BaseModel):
     unit_cost: float
     expected_delivery_date: str
     notes: Optional[str] = None
+
+class RestockingRecommendationItem(BaseModel):
+    item_sku: str
+    item_name: str
+    demand_gap: int
+    unit_cost: float
+    quantity: int
+    line_cost: float
+
+class RestockingRecommendationResponse(BaseModel):
+    budget: float
+    total_cost: float
+    remaining_budget: float
+    items: List[RestockingRecommendationItem]
+
+class RestockingOrderItem(BaseModel):
+    item_sku: str
+    item_name: str
+    quantity: int
+    unit_cost: float
+
+class RestockingOrderRequest(BaseModel):
+    items: List[RestockingOrderItem]
+    total_value: float
 
 # API endpoints
 @app.get("/")
@@ -303,6 +330,102 @@ def get_monthly_trends():
     result = list(months.values())
     result.sort(key=lambda x: x['month'])
     return result
+
+@app.get("/api/restocking/recommend", response_model=RestockingRecommendationResponse)
+def get_restocking_recommendations(budget: float):
+    """Recommend items to restock based on demand gap, constrained by budget."""
+    # Build candidates: only items where forecasted > current demand
+    candidates = []
+    for f in demand_forecasts:
+        gap = f["forecasted_demand"] - f["current_demand"]
+        if gap > 0:
+            candidates.append({
+                "item_sku": f["item_sku"],
+                "item_name": f["item_name"],
+                "demand_gap": gap,
+                "unit_cost": f["unit_cost"],
+            })
+
+    # Sort by demand gap descending (highest unmet demand first)
+    candidates.sort(key=lambda x: x["demand_gap"], reverse=True)
+
+    # Greedy fill within budget
+    selected = []
+    remaining = budget
+    for c in candidates:
+        full_cost = c["demand_gap"] * c["unit_cost"]
+        if full_cost <= remaining:
+            selected.append({
+                **c,
+                "quantity": c["demand_gap"],
+                "line_cost": round(full_cost, 2),
+            })
+            remaining -= full_cost
+        elif remaining >= c["unit_cost"]:
+            # Partial fill: as many units as the remaining budget allows
+            qty = math.floor(remaining / c["unit_cost"])
+            line_cost = round(qty * c["unit_cost"], 2)
+            selected.append({
+                **c,
+                "quantity": qty,
+                "line_cost": line_cost,
+            })
+            remaining -= line_cost
+
+    total_cost = round(budget - remaining, 2)
+    return {
+        "budget": budget,
+        "total_cost": total_cost,
+        "remaining_budget": round(remaining, 2),
+        "items": selected,
+    }
+
+
+@app.post("/api/restocking/order", response_model=Order, status_code=201)
+def submit_restocking_order(request: RestockingOrderRequest):
+    """Submit a restocking order. Creates a new order with status 'Restocking'."""
+    # Generate IDs based on current orders count
+    new_id = str(len(orders) + 1)
+    order_number = f"ORD-2025-{len(orders) + 1:04d}"
+
+    # Compute lead time based on total quantity
+    total_quantity = sum(item.quantity for item in request.items)
+    if total_quantity < 100:
+        lead_days = 7
+    elif total_quantity <= 500:
+        lead_days = 14
+    else:
+        lead_days = 21
+
+    now = datetime.now()
+    order_date = now.strftime("%Y-%m-%dT%H:%M:%S")
+    expected_delivery = (now + timedelta(days=lead_days)).strftime("%Y-%m-%dT%H:%M:%S")
+
+    new_order = {
+        "id": new_id,
+        "order_number": order_number,
+        "customer": "Internal Restocking",
+        "items": [
+            {
+                "sku": item.item_sku,
+                "name": item.item_name,
+                "quantity": item.quantity,
+                "unit_price": item.unit_cost,
+            }
+            for item in request.items
+        ],
+        "status": "Restocking",
+        "order_date": order_date,
+        "expected_delivery": expected_delivery,
+        "total_value": request.total_value,
+        "actual_delivery": None,
+        "warehouse": None,
+        "category": None,
+    }
+
+    orders.append(new_order)
+    return new_order
+
 
 if __name__ == "__main__":
     import uvicorn
